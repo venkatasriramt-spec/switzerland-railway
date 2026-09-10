@@ -1,11 +1,22 @@
+# Environment and secrets
 .env
+
+# Python artifacts
 __pycache__/
 *.py[cod]
 *$py.class
 .venv/
 env/
 venv/
-.DS_Store
 
-# Ignore all generated and downloaded data
-data/
+# OS files
+.DS_Store
+Thumbs.db
+
+# Ignore generated and downloaded data files by extension/name
+# (Run the pipeline scripts sequentially to regenerate)
+data/raw/
+data/*.csv
+data/*.geojson
+data/*.graphml
+data/*.png

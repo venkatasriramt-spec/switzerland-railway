@@ -39,9 +39,7 @@ if __name__ == "__main__":
     tracks_file = os.path.join(base_dir, "..", "data", "switzerland_tracks.geojson")
     stations_file = os.path.join(base_dir, "..", "data", "switzerland_stations.geojson")
     
-    # Save the output image to the artifacts directory so it can be embedded in the walkthrough
-    artifact_dir = "/home/venkatasriramt/.gemini/antigravity-ide/brain/542bf617-8c35-4d73-8af9-41eebdc50db0"
-    output_image = os.path.join(artifact_dir, "switzerland_railway_map.png")
+    output_image = os.path.join(base_dir, "..", "data", "switzerland_railway_map.png")
     
     if not os.path.exists(tracks_file) or not os.path.exists(stations_file):
         print("Data files not found. Please run the extraction script first.")

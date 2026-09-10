@@ -1,0 +1,125 @@
+{
+    "description": "Rolling stock physics mapping based on Swiss train categories.",
+    "profiles": {
+        "ICE": {
+            "name": "InterCity Express",
+            "type": "high_speed",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 250,
+            "weight_tons": 450,
+            "length_meters": 200,
+            "carriages": 7
+        },
+        "TGV": {
+            "name": "Train à Grande Vitesse",
+            "type": "high_speed",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 320,
+            "weight_tons": 380,
+            "length_meters": 200,
+            "carriages": 8
+        },
+        "RJX": {
+            "name": "Railjet Xpress",
+            "type": "high_speed",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 230,
+            "weight_tons": 420,
+            "length_meters": 205,
+            "carriages": 7
+        },
+        "IC": {
+            "name": "InterCity",
+            "type": "long_distance",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 200,
+            "weight_tons": 400,
+            "length_meters": 200,
+            "carriages": 8
+        },
+        "EC": {
+            "name": "EuroCity",
+            "type": "long_distance",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 200,
+            "weight_tons": 400,
+            "length_meters": 200,
+            "carriages": 8
+        },
+        "IR": {
+            "name": "InterRegio",
+            "type": "long_distance",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 160,
+            "weight_tons": 350,
+            "length_meters": 150,
+            "carriages": 6
+        },
+        "RE": {
+            "name": "RegioExpress",
+            "type": "regional",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 160,
+            "weight_tons": 250,
+            "length_meters": 100,
+            "carriages": 4
+        },
+        "S": {
+            "name": "S-Bahn",
+            "type": "regional",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 120,
+            "weight_tons": 150,
+            "length_meters": 75,
+            "carriages": 3
+        },
+        "R": {
+            "name": "Regio",
+            "type": "regional",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 100,
+            "weight_tons": 100,
+            "length_meters": 50,
+            "carriages": 2
+        },
+        "PE": {
+            "name": "Panorama Express",
+            "type": "tourist",
+            "power": "electric",
+            "gauge": 1000,
+            "max_speed_kmh": 90,
+            "weight_tons": 200,
+            "length_meters": 120,
+            "carriages": 6
+        },
+        "TER": {
+            "name": "Transport Express Régional",
+            "type": "regional",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 160,
+            "weight_tons": 200,
+            "length_meters": 70,
+            "carriages": 3
+        },
+        "DEFAULT": {
+            "name": "Standard Train",
+            "type": "regional",
+            "power": "electric",
+            "gauge": 1435,
+            "max_speed_kmh": 120,
+            "weight_tons": 200,
+            "length_meters": 100,
+            "carriages": 4
+        }
+    }
+}

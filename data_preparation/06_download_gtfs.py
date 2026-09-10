@@ -40,6 +40,25 @@ def process_gtfs(gtfs_dir, output_file, rolling_stock_file):
     print("Loading trips...")
     trips = pd.read_csv(os.path.join(gtfs_dir, "trips.txt"))
     train_trips = trips[trips['route_id'].isin(train_routes['route_id'])]
+
+    print("Loading GTFS calendar (service days)...")
+    calendar = pd.read_csv(os.path.join(gtfs_dir, "calendar.txt"))
+    # Keep original weekday flags (0/1) for later string creation
+    # No aggregation here – we will build a human‑readable weekdays string
+    
+    # Load calendar exceptions (additions only) if present
+    calendar_dates_path = os.path.join(gtfs_dir, "calendar_dates.txt")
+    if os.path.exists(calendar_dates_path):
+        calendar_dates = pd.read_csv(calendar_dates_path)
+        additions = calendar_dates[calendar_dates['exception_type'] == 1]
+        added_counts = additions.groupby('service_id').size().reset_index(name='extra_days')
+        calendar = calendar.merge(added_counts, how='left', on='service_id')
+        calendar['extra_days'] = calendar['extra_days'].fillna(0).astype(int)
+        # Add extra days to the appropriate weekday flag (simplified: just increment a generic counter)
+        # For our purpose we will ignore extra_days in the weekday string
+    
+    # Merge weekday flags onto train_trips via service_id
+    train_trips = train_trips.merge(calendar[['service_id','monday','tuesday','wednesday','thursday','friday','saturday','sunday']], how='left', on='service_id')
     
     print("Loading stops...")
     stops = pd.read_csv(os.path.join(gtfs_dir, "stops.txt"))
@@ -80,14 +99,22 @@ def process_gtfs(gtfs_dir, output_file, rolling_stock_file):
     merged['power_supply'] = merged['route_short_name'].apply(lambda x: get_physics(x, 'power'))
     merged['gauge'] = merged['route_short_name'].apply(lambda x: get_physics(x, 'gauge'))
     
-    # Select relevant columns for the in-depth schedule
+    # Select relevant columns for the in-depth schedule (including weekly frequency)
+        # Create a compact weekday string like "Mon,Wed,Fri"
+    weekday_cols = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+    abbrev = {'monday':'Mon','tuesday':'Tue','wednesday':'Wed','thursday':'Thu','friday':'Fri','saturday':'Sat','sunday':'Sun'}
+    merged['weekdays'] = merged[weekday_cols].apply(
+        lambda row: ','.join([abbrev[col] for col, val in zip(weekday_cols, row) if val == 1]), axis=1)
+    
+    # Select relevant columns for the in‑depth schedule (including weekday string)
     final_df = merged[[
-        'route_short_name', 'route_long_name', 'trip_headsign', 
+        'trip_id', 'route_short_name', 'trip_headsign', 
         'stop_name', 'arrival_time', 'departure_time', 'stop_sequence',
-        'weight_tons', 'carriages', 'max_speed_kmh', 'power_supply', 'gauge'
+        'weight_tons', 'carriages', 'max_speed_kmh', 'power_supply', 'gauge',
+        'weekdays'
     ]]
     
-    final_df.sort_values(by=['route_short_name', 'arrival_time'], inplace=True)
+    final_df.sort_values(by=['trip_id', 'stop_sequence'], inplace=True)
     
     print(f"Exporting {len(final_df)} records to {output_file}...")
     final_df.to_csv(output_file, index=False)
