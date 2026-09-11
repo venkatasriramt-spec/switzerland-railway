@@ -2,7 +2,7 @@
 
 **ARTEMIS** (**A**utomated **R**ailway **T**ransport **E**nergy **M**odelling and **I**nfrastructure **S**ystem) — Switzerland Edition
 
-A comprehensive data pipeline that automatically downloads, processes, models, and visualizes railway network infrastructure and timetable data for the entire Swiss rail system. This project collects real-world geographic, scheduling, and rolling stock data and transforms it into clean, analysis-ready datasets.
+A comprehensive data pipeline that automatically downloads, processes, models, and visualizes railway network infrastructure and timetable data for the entire Swiss rail system. This project collects real-world geographic, scheduling, and rolling stock data and transforms it into clean, analysis-ready datasets — complete with geographic graph linking, station metadata, and interactive map visualizations.
 
 ---
 
@@ -15,10 +15,16 @@ ARTEMIS_Switzerland/
 │   ├── 01_download_infrastructure.py       # Download OSM data for Switzerland
 │   ├── 02_extract_tracks_and_stations.py   # Extract rail tracks + stations from OSM
 │   ├── 03_fetch_schedules.py               # Fetch live schedules from transport API
-│   ├── 04_visualize_network.py             # Render a geographic network map
+│   ├── 04_visualize_network.py             # Render a geographic network map (matplotlib)
 │   ├── 05_build_network_graph.py           # Build a routable NetworkX graph
 │   ├── 06_download_gtfs.py                 # Download + process official Swiss GTFS feed
-│   └── 07_create_master_dataset.py         # Merge API + GTFS into a master dataset
+│   ├── 07_create_master_dataset.py         # Merge API + GTFS into a master dataset
+│   ├── 08_map_stations_to_graph.py         # Snap GTFS stations to nearest graph nodes
+│   ├── 09_visualize_map.py                 # Generate Google Maps verification map
+│   └── 10_add_station_metadata.py          # Enrich master dataset with coordinates + platforms
+│
+├── visualization/                          # Standalone visualization outputs
+│   └── map.html                            # Leaflet.js single-journey map (example: S1 Baar)
 │
 ├── data/                                   # Generated data directory (mostly gitignored)
 │   ├── rolling_stock_profiles.json         # ✅ Tracked — hand-curated train physics config
@@ -31,7 +37,11 @@ ARTEMIS_Switzerland/
 │   ├── switzerland_schedules.csv           # ❌ Ignored — real-time API schedule snapshot
 │   ├── switzerland.graphml                 # ❌ Ignored — routable network graph (~172 MB)
 │   ├── in_depth_schedules.csv              # ❌ Ignored — enriched GTFS schedules (~294 MB)
-│   ├── master_dataset.csv                  # ❌ Ignored — final merged dataset (~7.8 MB)
+│   ├── master_dataset.csv                  # ❌ Ignored — final merged dataset (~13 MB)
+│   ├── station_to_node_mapping.csv         # ❌ Ignored — GTFS stop → graph node mapping (~17 MB)
+│   ├── verification_map.html               # ❌ Ignored — Google Maps station verification page
+│   ├── tracks_data.js                      # ❌ Ignored — track geometry export for WebGL (~53 MB)
+│   ├── webgl_map.html                      # ❌ Ignored — WebGL track visualization page
 │   └── switzerland_railway_map.png         # ❌ Ignored — rendered network visualization
 │
 ├── .env                                    # API tokens (gitignored)
@@ -44,7 +54,7 @@ ARTEMIS_Switzerland/
 
 ## 🛠️ Pipeline Steps in Detail
 
-The pipeline consists of 7 sequentially numbered Python scripts in `data_preparation/`. Each step builds on the outputs of previous steps.
+The pipeline consists of 10 sequentially numbered Python scripts in `data_preparation/`. Each step builds on the outputs of previous steps.
 
 ### Step 1 — Download Infrastructure (`01_download_infrastructure.py`)
 
@@ -136,6 +146,61 @@ Once matched, it extracts the **full journey details** for every matched train (
 
 ---
 
+### Step 8 — Map Stations to Graph (`08_map_stations_to_graph.py`)
+
+Links the GTFS stations to the geographic network graph built in Step 5 using spatial nearest-neighbor search.
+
+- Loads the `switzerland.graphml` and extracts all node coordinates.
+- Builds a **KD-tree** (`scipy.spatial.cKDTree`) for fast spatial queries.
+- For each GTFS stop, finds the nearest graph node and computes the **haversine distance** in meters.
+- Adds a `graph_node_id` column to the master dataset, connecting each station stop to a routable node in the track graph.
+
+**Input:** `data/switzerland.graphml`, `data/raw/gtfs/stops.txt`, `data/master_dataset.csv`  
+**Output:** `data/station_to_node_mapping.csv`, updated `data/master_dataset.csv` (with `graph_node_id`)
+
+---
+
+### Step 9 — Generate Verification Map (`09_visualize_map.py`)
+
+Produces an interactive **Google Maps** HTML page showing all unique train stations from the master dataset as red markers on a terrain map. Features include:
+
+- **Switzerland highlighting:** Loads GeoJSON country borders and dims all countries except Switzerland with a semi-transparent overlay.
+- **Hover info windows:** Hovering over a station marker shows the station name and platform count.
+- Requires a `GOOGLE_MAPS_API_KEY` in `.env`.
+
+**Input:** `data/master_dataset.csv`, `.env` (Google Maps API key)  
+**Output:** `data/verification_map.html`
+
+---
+
+### Step 10 — Add Station Metadata (`10_add_station_metadata.py`)
+
+Enriches the master dataset with additional station-level metadata extracted from the raw GTFS `stops.txt`:
+
+- **Exact coordinates:** `stop_lat` and `stop_lon` for each station.
+- **Platform count:** Number of unique, non-null platform codes per station (defaults to 1 if GTFS doesn't specify platforms).
+- Columns are inserted directly after `stop_name` for logical ordering.
+- The script is idempotent — it can be re-run safely by dropping existing metadata columns first.
+
+**Input:** `data/raw/gtfs/stops.txt`, `data/master_dataset.csv`  
+**Output:** Updated `data/master_dataset.csv` (with `stop_lat`, `stop_lon`, `platform_count`)
+
+---
+
+## 🗺️ Visualization
+
+In addition to the pipeline-generated maps, the `visualization/` directory contains standalone visualization outputs:
+
+### `visualization/map.html`
+A **Leaflet.js** interactive map showing a single train journey (S1 to Baar) with:
+- A red polyline connecting all station stops in order.
+- Clickable markers at each station showing arrival/departure times.
+- Auto-fitted map bounds to the route.
+
+This serves as a proof-of-concept for journey-level visualization.
+
+---
+
 ## 📊 Data Dictionary
 
 ### Generated Datasets
@@ -147,7 +212,11 @@ Once matched, it extracts the **full journey details** for every matched train (
 | `switzerland_schedules.csv` | ~44 KB | Live API snapshot of departures from 9 major stations |
 | `switzerland.graphml` | ~172 MB | Directed routing graph (nodes + edges with attributes) |
 | `in_depth_schedules.csv` | ~294 MB | Full GTFS schedules enriched with rolling stock physics |
-| `master_dataset.csv` | ~7.8 MB | Merged API + GTFS dataset with full journey details |
+| `station_to_node_mapping.csv` | ~17 MB | GTFS stop → graph node spatial mapping with snap distances |
+| `master_dataset.csv` | ~13 MB | Merged API + GTFS dataset with coordinates, platforms, graph links |
+| `verification_map.html` | ~84 KB | Google Maps interactive station verification page |
+| `tracks_data.js` | ~53 MB | Track geometry data exported for WebGL rendering |
+| `webgl_map.html` | ~3 KB | WebGL-based track visualization page |
 
 ### Master Dataset Columns
 
@@ -157,6 +226,9 @@ Once matched, it extracts the **full journey details** for every matched train (
 | `route_short_name` | GTFS | Train category and number (e.g., `IC1`, `S8`, `IR36`) |
 | `trip_headsign` | GTFS | Final destination displayed on the train |
 | `stop_name` | GTFS | Name of the station at this stop |
+| `stop_lat` | GTFS | Latitude of the station |
+| `stop_lon` | GTFS | Longitude of the station |
+| `platform_count` | GTFS | Number of unique platforms at this station |
 | `arrival_time` | GTFS | Scheduled arrival time (`HH:MM:SS`) |
 | `departure_time` | GTFS | Scheduled departure time (`HH:MM:SS`) |
 | `stop_sequence` | GTFS | Order of this stop in the journey (1, 2, 3, ...) |
@@ -166,6 +238,7 @@ Once matched, it extracts the **full journey details** for every matched train (
 | `power_supply` | Estimated | Power type (`electric`) |
 | `gauge` | Estimated | Track gauge in mm (1435 = standard, 1000 = narrow) |
 | `weekdays` | GTFS | Days the train runs (e.g., `Mon,Tue,Wed,Thu,Fri`) |
+| `graph_node_id` | Computed | ID of nearest node in `switzerland.graphml` (`lon,lat` format) |
 
 > **Note on estimated fields:** Weight, carriages, max speed, power supply, and gauge are mapped from `rolling_stock_profiles.json` based on the route short name prefix. These are representative values for each train category, not per-vehicle measurements.
 
@@ -210,7 +283,8 @@ The project uses a `.env` file (gitignored) for API credentials:
 
 | Variable | Description |
 |----------|-------------|
-| `OJP_API_TOKEN` | Token for the Swiss Open Journey Planner (OJP) 2.0 API. Obtain one from [opentransportdata.swiss](https://opentransportdata.swiss/). Quota: 20,000 calls/day, rate limit: 50 calls/minute. |
+| `OJP_API_TOKEN` | Token for the Swiss Open Journey Planner (OJP) 2.0 API. Obtain from [opentransportdata.swiss](https://opentransportdata.swiss/). Quota: 20,000 calls/day, rate limit: 50 calls/minute. |
+| `GOOGLE_MAPS_API_KEY` | Google Maps JavaScript API key. Required by Step 9 (`09_visualize_map.py`) to render the interactive station verification map. Obtain from [Google Cloud Console](https://console.cloud.google.com/). |
 
 > **Note:** The current pipeline scripts (Steps 1–7) use the free, unauthenticated `transport.opendata.ch` API for schedule data. The OJP token is reserved for future enhancements that may require the more detailed OJP 2.0 endpoint.
 
@@ -223,6 +297,7 @@ The project uses a `.env` file (gitignored) for API credentials:
 | Geofabrik OSM Extracts | https://download.geofabrik.de/europe/switzerland.html | Step 1 |
 | Swiss Open Transport API | https://transport.opendata.ch/ | Step 3 |
 | Swiss GTFS Feed | https://opentransportdata.swiss/ | Step 6 |
+| Google Maps JavaScript API | https://developers.google.com/maps | Step 9 |
 
 ---
 
@@ -232,13 +307,14 @@ The project uses a `.env` file (gitignored) for API credentials:
 
 - **Python 3.8+**
 - **~6 GB free disk space** (for raw downloads + processed outputs)
-- **~2 GB RAM** minimum (Step 6 processes large files in chunks)
+- **~2 GB RAM** minimum (Step 6 processes large files in chunks; Step 8 loads the full graph)
 - **Stable internet connection** (downloads ~760 MB of data)
+- **Google Maps API key** (only required for Step 9)
 
 ### Install Dependencies
 
 ```bash
-pip install requests pandas geopandas pyrosm networkx matplotlib shapely
+pip install requests pandas geopandas pyrosm networkx matplotlib shapely scipy numpy
 ```
 
 ### Execute the Pipeline
@@ -253,9 +329,12 @@ python data_preparation/04_visualize_network.py
 python data_preparation/05_build_network_graph.py
 python data_preparation/06_download_gtfs.py
 python data_preparation/07_create_master_dataset.py
+python data_preparation/08_map_stations_to_graph.py
+python data_preparation/09_visualize_map.py
+python data_preparation/10_add_station_metadata.py
 ```
 
-> **⏱️ Expected runtime:** Steps 1 and 6 involve large downloads and may take 10–30 minutes depending on your connection. Step 6 also requires significant processing time for the 3 GB `stop_times.txt` file.
+> **⏱️ Expected runtime:** Steps 1 and 6 involve large downloads and may take 10–30 minutes depending on your connection. Step 6 also requires significant processing time for the 3 GB `stop_times.txt` file. Step 8 loads the full graph into memory and may take a few minutes.
 
 ---
 
@@ -265,3 +344,5 @@ python data_preparation/07_create_master_dataset.py
 - **Estimated rolling stock data.** Physical train properties (weight, speed, carriages) are approximations based on category, not per-vehicle telemetry.
 - **Point-in-time API snapshots.** The `switzerland_schedules.csv` captures whatever is on the departure board at the moment the script runs. Running it at different times/days will yield different results.
 - **Standard and narrow gauge only.** The OSM extraction filters for `rail` and `narrow_gauge` types. Funiculars, tramways, and rack railways are not included.
+- **Station-to-graph snapping is approximate.** The KD-tree nearest-neighbor search uses Euclidean distance on (lon, lat) coordinates. While haversine distance is computed for verification, some stations may snap to nodes that are not the true nearest on-network point (e.g., stations near parallel tracks).
+- **Visualization constraints.** Rendering the full track network (~48 MB GeoJSON) in a browser can be demanding. The WebGL approach and tile-based strategies were explored to handle this; the Google Maps station-only view is the most reliable for verification.

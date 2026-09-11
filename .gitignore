@@ -13,10 +13,12 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Ignore generated and downloaded data files by extension/name
+# Ignore generated and downloaded data files
 # (Run the pipeline scripts sequentially to regenerate)
 data/raw/
 data/*.csv
 data/*.geojson
 data/*.graphml
 data/*.png
+data/*.html
+data/*.js

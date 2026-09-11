@@ -70,7 +70,7 @@ The earlier ARTEMIS codebase (located in a separate `ARTEMIS` repository) had go
 #### Creating the Master Dataset
 - Created `07_create_master_dataset.py` to bridge the real-time API snapshot (`switzerland_schedules.csv`) with the full GTFS timetable (`in_depth_schedules.csv`).
 - The script performs an inner join matching on station name, destination, departure time, and route identifier to link the live API observations to their full GTFS trip records.
-- Once matched, it extracts the complete journey details (all intermediate stops) for every matched train, producing `master_dataset.csv` (~7.8 MB).
+- Once matched, it extracts the complete journey details (all intermediate stops) for every matched train, producing `master_dataset.csv`.
 
 #### Data Quality Checks
 - Verified that the weekday distribution in the master dataset is varied (not all rows showing the same day).
@@ -79,12 +79,58 @@ The earlier ARTEMIS codebase (located in a separate `ARTEMIS` repository) had go
 
 ---
 
-### 10 September 2026 — Documentation Update & Project History
+### 10 September 2026 — Documentation & Gitignore Update
 
-- Rewrote `README.md` from scratch with comprehensive coverage: project structure with file sizes and git tracking status, detailed pipeline step descriptions with explicit inputs/outputs, full data dictionary, rolling stock profiles table, environment variable documentation, data source links, system requirements, and scope/limitations.
-- Created this `project_history.md` file to document the evolution of the project.
+- Rewrote `README.md` from scratch with comprehensive coverage.
+- Created `project_history.md` to document the evolution of the project.
 - Updated `.gitignore` to use granular file-type patterns (instead of blanket `data/` exclusion) so that the small, hand-curated `data/rolling_stock_profiles.json` is properly version-controlled.
 - Fixed `04_visualize_network.py` to save the output map image to `data/` instead of a hardcoded development-environment artifact path.
+
+---
+
+### 11 September 2026 — Graph Linking, Station Metadata & Visualization
+
+#### Station-to-Graph Mapping (Step 8)
+- Created `08_map_stations_to_graph.py` to link GTFS stations to the geographic network graph.
+- The script loads `switzerland.graphml` (all ~650K+ nodes), builds a KD-tree using `scipy.spatial.cKDTree`, and performs nearest-neighbor lookups for every GTFS stop.
+- Computes the haversine distance in meters between each station and its nearest graph node for quality verification.
+- Produces `station_to_node_mapping.csv` and adds a `graph_node_id` column to the master dataset.
+- All stations are retained regardless of snap distance (no rows dropped).
+
+#### Interactive Map Visualization (Step 9)
+- Created `09_visualize_map.py` to generate a Google Maps-based interactive verification map.
+- The map plots all unique stations from the master dataset as red circle markers on a terrain base map, centered on Switzerland.
+- Country borders are overlaid via GeoJSON, with all non-Swiss countries dimmed using a semi-transparent black fill to clearly isolate Switzerland.
+- Hovering over a station shows an info window with the station name and platform count.
+- Required a Google Maps API key, stored as `GOOGLE_MAPS_API_KEY` in `.env`.
+
+#### Exploration of Full Track Visualization
+- Attempted to render the full ~48 MB track GeoJSON in the browser using multiple approaches:
+  - **Leaflet.js markers + polylines:** Crashed the browser due to the sheer number of DOM elements.
+  - **WebGL rendering:** Exported all track coordinates into `tracks_data.js` (~53 MB) and created `webgl_map.html`, but browser memory constraints remained an issue.
+  - **Google Maps with GeoJSON overlay:** Successfully rendered stations but track rendering at full resolution proved too intensive for the browser without GPU acceleration.
+- Concluded that station-only maps are the most practical for browser-based verification. Full track visualization is better handled by `matplotlib` (Step 4) or desktop GIS tools.
+
+#### Journey Visualization Proof-of-Concept
+- Created `visualization/map.html` — a Leaflet.js interactive map showing a single train journey (S1 line to Baar).
+- Displays a red polyline connecting all stops in sequence with clickable markers showing arrival/departure times at each station.
+- Demonstrates the feasibility of per-journey visualization using the master dataset.
+
+#### Station Metadata Enrichment (Step 10)
+- Created `10_add_station_metadata.py` to enrich the master dataset with:
+  - **Exact coordinates:** `stop_lat` and `stop_lon` for each station, extracted from GTFS `stops.txt`.
+  - **Platform count:** Number of unique non-null platform codes per station. Defaults to 1 if the GTFS data does not specify platform information for a station.
+- Columns are inserted directly after `stop_name` for logical ordering.
+- The script is idempotent — it drops existing metadata columns before re-adding them, so it can be safely re-run.
+- Master dataset grew to ~13 MB with the additional columns.
+
+---
+
+### 11 September 2026 — Documentation & Gitignore Update (Round 2)
+
+- Updated `README.md` to document all 10 pipeline steps, the `visualization/` directory, updated data dictionary with new columns and new files, added `GOOGLE_MAPS_API_KEY` to the environment variable table, added `scipy` and `numpy` to the dependency list, and updated scope/limitations section.
+- Updated `project_history.md` with all Sep 11 developments.
+- Updated `.gitignore` to also ignore generated `.html` and `.js` files in `data/`.
 
 ---
 
@@ -100,10 +146,14 @@ The following files are generated by the pipeline and are excluded from version 
 | `data/switzerland_tracks.geojson` | ~48 MB | Generated by Step 2 |
 | `data/switzerland_stations.geojson` | ~1.2 MB | Generated by Step 2 |
 | `data/switzerland_schedules.csv` | ~44 KB | Generated by Step 3 (point-in-time snapshot) |
+| `data/switzerland_railway_map.png` | — | Generated by Step 4 |
 | `data/switzerland.graphml` | ~172 MB | Generated by Step 5 |
 | `data/in_depth_schedules.csv` | ~294 MB | Generated by Step 6 |
-| `data/master_dataset.csv` | ~7.8 MB | Generated by Step 7 |
-| `data/switzerland_railway_map.png` | — | Generated by Step 4 |
-| `.env` | ~135 B | Contains API tokens (security) |
+| `data/master_dataset.csv` | ~13 MB | Generated by Steps 7, 8, 10 |
+| `data/station_to_node_mapping.csv` | ~17 MB | Generated by Step 8 |
+| `data/verification_map.html` | ~84 KB | Generated by Step 9 |
+| `data/tracks_data.js` | ~53 MB | Generated during track visualization experiments |
+| `data/webgl_map.html` | ~3 KB | Generated during track visualization experiments |
+| `.env` | ~194 B | Contains API tokens (security) |
 
 The only data file that **is** committed is `data/rolling_stock_profiles.json` (3.5 KB) because it is a hand-curated configuration file that cannot be regenerated by code.

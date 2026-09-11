@@ -1,0 +1,149 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Train Journey Visualization</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <style>
+            #map { height: 100vh; width: 100%; margin: 0; padding: 0; }
+            body { margin: 0; padding: 0; }
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <script>
+            var map = L.map('map').setView([47.1701824, 8.0982946], 11);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            var routeCoords = [
+                [47.1701824, 8.0982946],
+[47.1547679, 8.1146469],
+[47.1382198, 8.1394988],
+[47.1160322, 8.1956513],
+[47.0895819, 8.2469301],
+[47.090793, 8.2730958],
+[47.0782468, 8.2768282],
+[47.0707506, 8.2827391],
+[47.0501374, 8.3101508],
+[47.0840295, 8.3419103],
+[47.0937169, 8.356827],
+[47.1048995, 8.3738236],
+[47.1210039, 8.3941634],
+[47.1418916, 8.4306739],
+[47.173731, 8.4502341],
+[47.178142, 8.4575792],
+[47.1823496, 8.4713965],
+[47.1802122, 8.4866025],
+[47.1737815, 8.5073414],
+[47.1737108, 8.5150286],
+[47.1830982, 8.5171234],
+[47.1884544, 8.5177083],
+[47.19538, 8.5230597]
+            ];
+
+            var routeLine = L.polyline(routeCoords, {color: 'red', weight: 4}).addTo(map);
+            map.fitBounds(routeLine.getBounds());
+
+            
+            L.marker([47.1701824, 8.0982946]).addTo(map)
+                .bindPopup("<b>Sursee</b><br>Arr: 18:18:00<br>Dep: 18:18:00");
+            
+
+            L.marker([47.1547679, 8.1146469]).addTo(map)
+                .bindPopup("<b>Oberkirch LU</b><br>Arr: 18:20:00<br>Dep: 18:20:00");
+            
+
+            L.marker([47.1382198, 8.1394988]).addTo(map)
+                .bindPopup("<b>Nottwil</b><br>Arr: 18:22:00<br>Dep: 18:22:00");
+            
+
+            L.marker([47.1160322, 8.1956513]).addTo(map)
+                .bindPopup("<b>Sempach-Neuenkirch</b><br>Arr: 18:26:00<br>Dep: 18:27:00");
+            
+
+            L.marker([47.0895819, 8.2469301]).addTo(map)
+                .bindPopup("<b>Rothenburg Station</b><br>Arr: 18:31:00<br>Dep: 18:31:00");
+            
+
+            L.marker([47.090793, 8.2730958]).addTo(map)
+                .bindPopup("<b>Emmenbrücke Kapf</b><br>Arr: 18:33:00<br>Dep: 18:33:00");
+            
+
+            L.marker([47.0782468, 8.2768282]).addTo(map)
+                .bindPopup("<b>Emmenbrücke Gersag</b><br>Arr: 18:36:00<br>Dep: 18:36:00");
+            
+
+            L.marker([47.0707506, 8.2827391]).addTo(map)
+                .bindPopup("<b>Emmenbrücke</b><br>Arr: 18:38:00<br>Dep: 18:38:00");
+            
+
+            L.marker([47.0501374, 8.3101508]).addTo(map)
+                .bindPopup("<b>Luzern</b><br>Arr: 18:45:00<br>Dep: 18:51:00");
+            
+
+            L.marker([47.0840295, 8.3419103]).addTo(map)
+                .bindPopup("<b>Ebikon</b><br>Arr: 18:58:00<br>Dep: 18:58:00");
+            
+
+            L.marker([47.0937169, 8.356827]).addTo(map)
+                .bindPopup("<b>Buchrain</b><br>Arr: 19:00:00<br>Dep: 19:00:00");
+            
+
+            L.marker([47.1048995, 8.3738236]).addTo(map)
+                .bindPopup("<b>Root D4</b><br>Arr: 19:02:00<br>Dep: 19:02:00");
+            
+
+            L.marker([47.1210039, 8.3941634]).addTo(map)
+                .bindPopup("<b>Gisikon-Root</b><br>Arr: 19:05:00<br>Dep: 19:05:00");
+            
+
+            L.marker([47.1418916, 8.4306739]).addTo(map)
+                .bindPopup("<b>Rotkreuz</b><br>Arr: 19:08:00<br>Dep: 19:09:00");
+            
+
+            L.marker([47.173731, 8.4502341]).addTo(map)
+                .bindPopup("<b>Hünenberg Zythus</b><br>Arr: 19:12:00<br>Dep: 19:12:00");
+            
+
+            L.marker([47.178142, 8.4575792]).addTo(map)
+                .bindPopup("<b>Cham</b><br>Arr: 19:14:00<br>Dep: 19:14:00");
+            
+
+            L.marker([47.1823496, 8.4713965]).addTo(map)
+                .bindPopup("<b>Cham Alpenblick</b><br>Arr: 19:15:00<br>Dep: 19:15:00");
+            
+
+            L.marker([47.1802122, 8.4866025]).addTo(map)
+                .bindPopup("<b>Zug Chollermüli</b><br>Arr: 19:17:00<br>Dep: 19:17:00");
+            
+
+            L.marker([47.1737815, 8.5073414]).addTo(map)
+                .bindPopup("<b>Zug Schutzengel</b><br>Arr: 19:19:00<br>Dep: 19:19:00");
+            
+
+            L.marker([47.1737108, 8.5150286]).addTo(map)
+                .bindPopup("<b>Zug</b><br>Arr: 19:21:00<br>Dep: 19:21:00");
+            
+
+            L.marker([47.1830982, 8.5171234]).addTo(map)
+                .bindPopup("<b>Baar Lindenpark</b><br>Arr: 19:23:00<br>Dep: 19:23:00");
+            
+
+            L.marker([47.1884544, 8.5177083]).addTo(map)
+                .bindPopup("<b>Baar Neufeld</b><br>Arr: 19:24:00<br>Dep: 19:24:00");
+            
+
+            L.marker([47.19538, 8.5230597]).addTo(map)
+                .bindPopup("<b>Baar</b><br>Arr: 19:27:00<br>Dep: 19:27:00");
+            
+        </script>
+    </body>
+    </html>
+    
