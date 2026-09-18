@@ -47,12 +47,14 @@ def build_graph(tracks_path, output_graphml_path):
             if v_id not in G:
                 G.add_node(v_id, x=v_coord[0], y=v_coord[1])
             
-            # Extract basic edge attributes (e.g., maxspeed, gauge) if they exist
+            # Extract basic edge attributes from the nested 'tags' dictionary
             edge_attrs = {}
-            for col in ['maxspeed', 'gauge', 'electrified', 'railway']:
-                if col in row and not pd.isna(row[col]):
-                    edge_attrs[col] = str(row[col])
-                    
+            if 'tags' in row and not pd.isna(row['tags']) and isinstance(row['tags'], dict):
+                tags_dict = row['tags']
+                for col in ['maxspeed', 'gauge', 'electrified', 'railway', 'tracks']:
+                    if col in tags_dict:
+                        edge_attrs[col] = str(tags_dict[col])
+                        
             # Add bidirectional edges for railway tracks
             G.add_edge(u_id, v_id, **edge_attrs)
             G.add_edge(v_id, u_id, **edge_attrs)
