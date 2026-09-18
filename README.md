@@ -34,9 +34,6 @@ ARTEMIS_Switzerland/
 │   ├── backend/                            # FastAPI backend (WebSocket simulation streaming)
 │   └── frontend/                           # React frontend (Vite) for map visualization
 │
-├── visualization/                          # Standalone visualization outputs
-│   └── map.html                            # Leaflet.js single-journey map (example: S1 Baar)
-│
 ├── data/                                   # Generated data directory (mostly gitignored)
 │   ├── rolling_stock_profiles.json         # ✅ Tracked — hand-curated train physics config
 │   ├── compiled_routes.json                # ❌ Ignored — precompiled route distances

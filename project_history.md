@@ -112,7 +112,7 @@ The earlier ARTEMIS codebase (located in a separate `ARTEMIS` repository) had go
 - Concluded that station-only maps are the most practical for browser-based verification. Full track visualization is better handled by `matplotlib` (Step 4) or desktop GIS tools.
 
 #### Journey Visualization Proof-of-Concept
-- Created `visualization/map.html` — a Leaflet.js interactive map showing a single train journey (S1 line to Baar).
+- Explored journey visualization by creating a Leaflet.js interactive map showing a single train journey (S1 line to Baar).
 - Displays a red polyline connecting all stops in sequence with clickable markers showing arrival/departure times at each station.
 - Demonstrates the feasibility of per-journey visualization using the master dataset.
 
@@ -128,7 +128,7 @@ The earlier ARTEMIS codebase (located in a separate `ARTEMIS` repository) had go
 
 ### 11 September 2026 — Documentation & Gitignore Update (Round 2)
 
-- Updated `README.md` to document all 10 pipeline steps, the `visualization/` directory, updated data dictionary with new columns and new files, added `GOOGLE_MAPS_API_KEY` to the environment variable table, added `scipy` and `numpy` to the dependency list, and updated scope/limitations section.
+- Updated `README.md` to document all 10 pipeline steps, the visualization outputs, updated data dictionary with new columns and new files, added `GOOGLE_MAPS_API_KEY` to the environment variable table, added `scipy` and `numpy` to the dependency list, and updated scope/limitations section.
 - Updated `project_history.md` with all Sep 11 developments.
 - Updated `.gitignore` to also ignore generated `.html` and `.js` files in `data/`.
 
