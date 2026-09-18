@@ -33,3 +33,8 @@ simulation/*.log
 
 # Ignore massive generated JSON (but keep rolling_stock_profiles.json)
 data/compiled_routes.json
+
+# Web Dashboard & Tool Artifacts
+dashboard/frontend/node_modules/
+dashboard/frontend/dist/
+.playwright-mcp/
