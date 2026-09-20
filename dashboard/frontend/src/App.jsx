@@ -1,17 +1,37 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import ArtemisMap from './components/Map';
-import TrainTable from './components/TrainTable';
+
+import Home from './pages/Home';
+import About from './pages/About';
+import Visualization from './pages/Visualization';
+import TrainData from './pages/TrainData';
+
 import './index.css';
 
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
+// A simple navigation bar component
+const NavBar = () => {
+  const location = useLocation();
+  const path = location.pathname;
+
+  return (
+    <nav className="navbar glass-panel">
+      <div className="nav-brand">ARTEMIS Dashboard</div>
+      <div className="nav-links">
+        <Link to="/" className={`nav-link ${path === '/' ? 'active' : ''}`}>Home</Link>
+        <Link to="/about" className={`nav-link ${path === '/about' ? 'active' : ''}`}>About</Link>
+        <Link to="/visualization" className={`nav-link ${path === '/visualization' ? 'active' : ''}`}>Visualization</Link>
+        <Link to="/data" className={`nav-link ${path === '/data' ? 'active' : ''}`}>Train Data</Link>
+      </div>
+    </nav>
+  );
+};
+
 function App() {
   const [trains, setTrains] = useState([]);
   const [metadata, setMetadata] = useState([]);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isRegistryOpen, setIsRegistryOpen] = useState(false);
 
   useEffect(() => {
     // Fetch static metadata
@@ -26,89 +46,44 @@ function App() {
     const ws = new WebSocket('ws://localhost:8000/ws/simulation');
     
     ws.onopen = () => {
-      console.log('Connected to simulation server');
-      setIsConnected(true);
+      console.log('Connected to simulation stream');
     };
-    
+
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setCurrentTime(data.time);
-      setTrains(data.trains);
+      try {
+        const data = JSON.parse(event.data);
+        if (data.trains) {
+          setTrains(data.trains);
+        }
+      } catch (err) {
+        console.error('Error parsing WebSocket message', err);
+      }
     };
-    
-    ws.onclose = () => {
-      console.log('Disconnected from simulation server');
-      setIsConnected(false);
+
+    ws.onerror = (error) => {
+      console.error('WebSocket Error:', error);
     };
-    
+
     return () => {
       ws.close();
     };
   }, []);
 
-  // Calculate some basic metrics
-  const activeTrains = trains.filter(t => t.speed > 0).length;
-  const avgSpeed = trains.length > 0 
-    ? (trains.reduce((sum, t) => sum + t.speed, 0) / trains.length).toFixed(1) 
-    : 0;
-  
-  // Format simulated time (sim starts at 0, max 86400s)
-  const formatTime = (seconds) => {
-    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
-    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
-    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${h}:${m}:${s}`;
-  };
-
   return (
     <APIProvider apiKey={API_KEY}>
-      <div className="dashboard-container">
-        
-        {/* Left Sidebar */}
-        <div className="sidebar glass-panel">
-          <h1>ARTEMIS Dashboard</h1>
-          <div className="status-badge">
-            <span className={`indicator ${isConnected ? 'live' : 'offline'}`}></span>
-            {isConnected ? 'LIVE SIMULATION' : 'OFFLINE'}
-          </div>
-          
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <span className="label">Sim Time</span>
-              <span className="value">{formatTime(currentTime)}</span>
-            </div>
-            <div className="metric-card">
-              <span className="label">Active Trains</span>
-              <span className="value">{activeTrains} / {trains.length}</span>
-            </div>
-            <div className="metric-card">
-              <span className="label">Avg Speed</span>
-              <span className="value">{avgSpeed} m/s</span>
-            </div>
-          </div>
-          
-          <div className="info-panel">
-            <h3>AI Dispatcher</h3>
-            <p>The PPO reinforcement learning agent is currently controlling all {metadata.length > 0 ? metadata.length : 5643} trains on the Swiss Railway Network, scheduling them to prevent collisions and minimize delays.</p>
-            <button className="btn-primary" onClick={() => setIsRegistryOpen(!isRegistryOpen)}>
-              {isRegistryOpen ? 'Hide Train Registry' : 'View Train Registry'}
-            </button>
+      <BrowserRouter>
+        <div className="app-container">
+          <NavBar />
+          <div className="main-content">
+            <Routes>
+              <Route path="/" element={<Home activeTrains={trains} metadata={metadata} />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/visualization" element={<Visualization trains={trains} metadata={metadata} />} />
+              <Route path="/data" element={<TrainData activeTrains={trains} metadata={metadata} />} />
+            </Routes>
           </div>
         </div>
-
-        {/* Main Map View */}
-        <div className="map-container">
-          <ArtemisMap trains={trains} />
-          {isRegistryOpen && (
-            <TrainTable 
-              metadata={metadata} 
-              activeTrains={trains} 
-              onClose={() => setIsRegistryOpen(false)} 
-            />
-          )}
-        </div>
-        
-      </div>
+      </BrowserRouter>
     </APIProvider>
   );
 }

@@ -15,36 +15,43 @@ ARTEMIS_Switzerland/
 │
 ├── data_preparation/                       # Core pipeline scripts (run sequentially)
 │   ├── 01_download_infrastructure.py       # Download OSM data for Switzerland
-│   ├── 02_extract_tracks_and_stations.py   # Extract rail tracks + stations from OSM
-│   ├── 03_fetch_schedules.py               # Fetch live schedules from transport API
-│   ├── 04_visualize_network.py             # Render a geographic network map (matplotlib)
-│   ├── 05_build_network_graph.py           # Build a routable NetworkX graph
-│   ├── 06_download_gtfs.py                 # Download + process official Swiss GTFS feed
-│   ├── 07_create_master_dataset.py         # Merge API + GTFS into a master dataset
-│   ├── 08_map_stations_to_graph.py         # Snap GTFS stations to nearest graph nodes
-│   ├── 09_visualize_map.py                 # Generate Google Maps verification map
+│   ├── ...
 │   └── 10_add_station_metadata.py          # Enrich master dataset with coordinates + platforms
 │
 ├── simulation/                             # RL Simulation Environment & Training
 │   ├── artemis_env.py                      # Custom Gym Environment for train simulation
-│   ├── train_agent.py                      # Stable Baselines3 PPO training script
+│   ├── artemis_env_advanced.py             # Advanced Curriculum-learning Gym environment
+│   ├── callbacks.py                        # Stable Baselines3 custom callbacks (progress/curriculum)
+│   ├── train_agent.py                      # Standard PPO training script
 │   └── run_trained_model.py                # Evaluation script for the trained model
+│
+├── scripts/                                # Helper / preprocessing scripts
+│   └── preprocess_data.py                  # Generates mini_routes.json for fast loading
 │
 ├── dashboard/                              # Real-time Web Dashboard
 │   ├── backend/                            # FastAPI backend (WebSocket simulation streaming)
-│   └── frontend/                           # React frontend (Vite) for map visualization
+│   └── frontend/                           # React frontend (Vite) with multi-page routing
+│       └── src/pages/                      # Home, Visualization, TrainData, About pages
+│
+├── train_advanced.py                       # Multi-core advanced PPO training orchestrator
+├── monitor_safety.py                       # Resource watcher daemon to safely pause/stop training
+├── run_safely.sh                           # Bash script to run training with safety monitor
+├── plot_training.py                        # Script to plot training metrics from CSV logs
+├── test_memory.py                          # Diagnostics for memory usage
+├── test_pickle_size.py                     # Diagnostics for serialization overhead
 │
 ├── data/                                   # Generated data directory (mostly gitignored)
 │   ├── rolling_stock_profiles.json         # ✅ Tracked — hand-curated train physics config
 │   ├── compiled_routes.json                # ❌ Ignored — precompiled route distances
-│   ├── raw/                                # ❌ Ignored — raw downloads (OSM .pbf, GTFS .zip)
-│   ├── master_dataset.csv                  # ❌ Ignored — final merged dataset (~13 MB)
+│   ├── mini_routes.json                    # ❌ Ignored — preprocessed fast-loading routes
 │   └── ...                                 # Other generated files (CSV, GeoJSON, etc.)
 │
 ├── models/                                 # Trained AI models (gitignored)
-│   ├── artemis_final_model.zip             # ❌ Ignored — trained PPO agent
+│   ├── checkpoints_advanced/               # ❌ Ignored — periodic training snapshots
 │   └── tb_logs/                            # ❌ Ignored — TensorBoard training logs
 │
+├── logs/                                   # ❌ Ignored — CSV and text progress logs
+├── tensorboard_logs/                       # ❌ Ignored — Advanced TensorBoard logs
 ├── tensorboard_images/                     # Screenshots for TensorBoard guide
 ├── tensorboard_guide.md                    # Guide to understanding PPO training metrics
 ├── .env                                    # API tokens (gitignored)
@@ -96,15 +103,18 @@ Enriches the master dataset with exact coordinates and platform counts per stati
 Once the data pipeline produces the `master_dataset.csv` and `compiled_routes.json`, the simulation environment takes over.
 
 ### The Gym Environment (`simulation/artemis_env.py`)
-A custom OpenAI Gym environment simulates the kinematics (acceleration, braking, coasting) of up to 5,600+ scheduled trains simultaneously. The environment interpolates geographical coordinates using precomputed trip distances to reflect realistic train movement.
+A custom OpenAI Gym environment simulates the kinematics (acceleration, braking, coasting) of scheduled trains simultaneously. The environment interpolates geographical coordinates using precomputed trip distances to reflect realistic train movement.
 
-### Training the Agent (`simulation/train_agent.py`)
-We use **Proximal Policy Optimization (PPO)** from Stable Baselines3 to train an AI agent. The agent observes the positions, speeds, and delays of all trains and must choose control actions (Accelerate, Coast, Brake) to minimize cumulative network delay and energy consumption. 
+### Advanced Multiprocessed Training (`train_advanced.py`)
+We use **Proximal Policy Optimization (PPO)** from Stable Baselines3. The advanced setup uses:
+- **`SubprocVecEnv`**: Parallelizes training across available CPU cores for maximum throughput.
+- **Curriculum Learning**: Progressively increases the difficulty (number of trains) dynamically via custom callbacks (`simulation/callbacks.py`).
+- **Safety Monitoring (`run_safely.sh`)**: Runs `monitor_safety.py` in the background to ensure memory usage and system resources don't overwhelm the machine during intensive multi-core training runs.
 
 > For a deep dive into the training performance and metrics, see the **[TensorBoard Guide](tensorboard_guide.md)**.
 
 ### Running & Evaluating (`simulation/run_trained_model.py`)
-Evaluates the saved `models/artemis_final_model.zip` policy deterministically over a set of episodes and traces the reward outputs in the terminal.
+Evaluates the saved policy deterministically over a set of episodes and traces the reward outputs in the terminal.
 
 ---
 
@@ -113,7 +123,7 @@ Evaluates the saved `models/artemis_final_model.zip` policy deterministically ov
 The `dashboard/` directory contains a real-time web interface for visualizing the live simulation.
 
 - **Backend (`dashboard/backend/main.py`)**: A FastAPI application that loads the trained PPO model, steps the `ArtemisEnv`, and streams live train coordinates, speeds, and delays via WebSockets.
-- **Frontend (`dashboard/frontend/`)**: A React/Vite application that connects to the WebSocket and plots trains dynamically on a map interface.
+- **Frontend (`dashboard/frontend/`)**: A modular React/Vite application that connects to the WebSocket. It utilizes React Router to provide distinct pages: Home, Interactive Map Visualization, Train Data Tables, and About.
 
 ---
 
@@ -145,9 +155,13 @@ python data_preparation/01_download_infrastructure.py
 ### 2. AI Simulation
 ```bash
 pip install stable-baselines3[extra] gym
-# Train the model (outputs to models/ and tensorboard logs to models/tb_logs/)
-python simulation/train_agent.py
-# Evaluate the trained model
+# Preprocess data for fast simulation loading
+python scripts/preprocess_data.py
+
+# Run the advanced, multi-core training with safety monitoring
+./run_safely.sh
+
+# Alternatively, evaluate the trained model
 python simulation/run_trained_model.py
 ```
 

@@ -91,10 +91,11 @@ def get_train_metadata():
     
     # Get unique trips with their static metadata
     metadata_df = env.master_df.drop_duplicates(subset=['trip_id']).copy()
-    cols = ['trip_id', 'route_short_name', 'trip_headsign', 'carriages', 'max_speed_kmh', 'weight_tons']
-    metadata_df = metadata_df[cols].fillna("")
     
-    # Return as list of dictionaries
+    # Replace NaN/NaT with empty strings to ensure valid JSON
+    metadata_df = metadata_df.fillna("")
+    
+    # Return all columns as list of dictionaries
     records = metadata_df.to_dict(orient="records")
     return {"metadata": records}
 
