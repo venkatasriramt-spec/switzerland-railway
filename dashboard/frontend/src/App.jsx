@@ -5,7 +5,6 @@ import { APIProvider } from '@vis.gl/react-google-maps';
 import Home from './pages/Home';
 import About from './pages/About';
 import Visualization from './pages/Visualization';
-import TrainData from './pages/TrainData';
 
 import './index.css';
 
@@ -23,7 +22,6 @@ const NavBar = () => {
         <Link to="/" className={`nav-link ${path === '/' ? 'active' : ''}`}>Home</Link>
         <Link to="/about" className={`nav-link ${path === '/about' ? 'active' : ''}`}>About</Link>
         <Link to="/visualization" className={`nav-link ${path === '/visualization' ? 'active' : ''}`}>Visualization</Link>
-        <Link to="/data" className={`nav-link ${path === '/data' ? 'active' : ''}`}>Train Data</Link>
       </div>
     </nav>
   );
@@ -79,7 +77,6 @@ function App() {
               <Route path="/" element={<Home activeTrains={trains} metadata={metadata} />} />
               <Route path="/about" element={<About />} />
               <Route path="/visualization" element={<Visualization trains={trains} metadata={metadata} />} />
-              <Route path="/data" element={<TrainData activeTrains={trains} metadata={metadata} />} />
             </Routes>
           </div>
         </div>

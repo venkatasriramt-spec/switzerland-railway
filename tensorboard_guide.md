@@ -167,4 +167,4 @@ The ARTEMIS PPO agent shows **healthy, convergent training behaviour** across al
 - All loss functions converged to near-zero, confirming the neural network successfully learned the railway dynamics.
 - The Critic's explained variance reached 0.3+, showing meaningful predictive capability for this highly complex multi-agent environment.
 
-The trained model is saved at `models/artemis_final_model.zip` and is ready for evaluation.
+The trained model is saved at `models/artemis_advanced_final_model.zip` and is ready for evaluation.

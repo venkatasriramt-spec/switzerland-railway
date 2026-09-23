@@ -8,8 +8,10 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from artemis_env import ArtemisEnv
 from stable_baselines3 import PPO
+
+# Import the advanced environment
+from artemis_env_advanced import ArtemisAdvancedEnv
 
 app = FastAPI()
 
@@ -30,30 +32,25 @@ latest_state = []
 
 async def run_simulation():
     global env, model, latest_state
-    print("Initializing RL Environment and Model for WebSocket streaming...")
-    env = ArtemisEnv() # Defaults to 5643 trains now
+    print("Initializing Advanced RL Environment and Model for WebSocket streaming...")
+    env = ArtemisAdvancedEnv(num_trains=500) 
     
-    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "models", "artemis_final_model.zip")
-    # Load model without passing env, as the observation spaces won't match
+    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "models", "artemis_advanced_final_model.zip")
+    
+    if not os.path.exists(model_path):
+        print(f"ERROR: Model not found at {model_path}. Please train the model first.")
+        return
+        
     model = PPO.load(model_path)
     
     obs, info = env.reset()
     import numpy as np
     
+    print("Starting Live Inference Loop...")
     while True:
-        # Step the environment
-        action = np.zeros(env.num_trains, dtype=int)
-        
-        # Batch predict for the 100-train PPO model
-        for i in range(0, env.num_trains, 100):
-            batch_obs = obs[i:i+100]
-            actual_len = len(batch_obs)
-            if actual_len < 100:
-                pad_width = 100 - actual_len
-                batch_obs = np.pad(batch_obs, ((0, pad_width), (0, 0)), mode='constant')
-                
-            batch_action, _states = model.predict(batch_obs, deterministic=True)
-            action[i:i+actual_len] = batch_action[:actual_len]
+        # The new model expects the entire observation matrix (500, 9) at once!
+        # No more manual batching needed.
+        action, _states = model.predict(obs, deterministic=True)
             
         obs, reward, done, truncated, info = env.step(action)
         

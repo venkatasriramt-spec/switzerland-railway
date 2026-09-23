@@ -19,31 +19,37 @@ ARTEMIS_Switzerland/
 │   └── 10_add_station_metadata.py          # Enrich master dataset with coordinates + platforms
 │
 ├── simulation/                             # RL Simulation Environment & Training
-│   ├── artemis_env.py                      # Custom Gym Environment for train simulation
-│   ├── artemis_env_advanced.py             # Advanced Curriculum-learning Gym environment
-│   ├── callbacks.py                        # Stable Baselines3 custom callbacks (progress/curriculum)
+│   ├── artemis_env.py                      # Original Gym environment (full 5,600+ train fleet)
+│   ├── artemis_env_advanced.py             # Advanced env with curriculum learning & GPS interpolation
+│   ├── dispatcher_env.py                   # Regional Dispatcher env (Hold/Dispatch per-train actions)
+│   ├── callbacks.py                        # Custom SB3 callbacks (curriculum, file-progress)
 │   ├── train_agent.py                      # Standard PPO training script
 │   └── run_trained_model.py                # Evaluation script for the trained model
 │
 ├── scripts/                                # Helper / preprocessing scripts
-│   └── preprocess_data.py                  # Generates mini_routes.json for fast loading
+│   ├── preprocess_data.py                  # Generates mini_routes.json for fast env loading
+│   ├── split_regions.py                    # Splits master dataset into 4 geographic regions
+│   ├── shared_memory_server.py             # Loads compiled_routes.json into Redis for IPC
+│   └── master_progress_bar.py              # Unified terminal progress bar (reads Redis)
 │
 ├── dashboard/                              # Real-time Web Dashboard
 │   ├── backend/                            # FastAPI backend (WebSocket simulation streaming)
 │   └── frontend/                           # React frontend (Vite) with multi-page routing
-│       └── src/pages/                      # Home, Visualization, TrainData, About pages
+│       └── src/pages/                      # Home, Visualization, About pages
 │
 ├── train_advanced.py                       # Multi-core advanced PPO training orchestrator
-├── monitor_safety.py                       # Resource watcher daemon to safely pause/stop training
-├── run_safely.sh                           # Bash script to run training with safety monitor
+├── train_dispatcher.py                     # Per-region Dispatcher PPO training (4 parallel regions)
+├── monitor_safety.py                       # Resource watcher daemon (RAM/CPU guard)
+├── run_safely.sh                           # Orchestrates advanced training with safety monitor
+├── run_dispatcher_safely.sh                # Orchestrates regional dispatcher training (28 vCPUs)
+├── start_dashboard.sh                      # One-command launcher for backend + frontend
 ├── plot_training.py                        # Script to plot training metrics from CSV logs
-├── test_memory.py                          # Diagnostics for memory usage
-├── test_pickle_size.py                     # Diagnostics for serialization overhead
 │
 ├── data/                                   # Generated data directory (mostly gitignored)
 │   ├── rolling_stock_profiles.json         # ✅ Tracked — hand-curated train physics config
 │   ├── compiled_routes.json                # ❌ Ignored — precompiled route distances
 │   ├── mini_routes.json                    # ❌ Ignored — preprocessed fast-loading routes
+│   ├── regions.json                        # ❌ Ignored — geographic region splits
 │   └── ...                                 # Other generated files (CSV, GeoJSON, etc.)
 │
 ├── models/                                 # Trained AI models (gitignored)
@@ -100,16 +106,24 @@ Enriches the master dataset with exact coordinates and platform counts per stati
 
 ## 🤖 AI Simulation & Training
 
-Once the data pipeline produces the `master_dataset.csv` and `compiled_routes.json`, the simulation environment takes over.
+Once the data pipeline produces the `master_dataset.csv` and `compiled_routes.json`, the simulation environment takes over. There are two tiers of training:
 
-### The Gym Environment (`simulation/artemis_env.py`)
-A custom OpenAI Gym environment simulates the kinematics (acceleration, braking, coasting) of scheduled trains simultaneously. The environment interpolates geographical coordinates using precomputed trip distances to reflect realistic train movement.
+### Tier 1 — Low-Level Driver (`simulation/artemis_env_advanced.py`)
+A custom OpenAI Gym environment simulates the kinematics (acceleration, braking, coasting) of up to 500 trains simultaneously. The environment interpolates geographical coordinates using precomputed trip distances to reflect realistic train movement. Features include:
+- **Collision detection** with dynamic penalty scaling.
+- **Curriculum learning** that ramps the number of active trains as the agent improves.
+- **GPS interpolation** (`get_train_coordinates()`) for real-time map visualization.
 
-### Advanced Multiprocessed Training (`train_advanced.py`)
-We use **Proximal Policy Optimization (PPO)** from Stable Baselines3. The advanced setup uses:
-- **`SubprocVecEnv`**: Parallelizes training across available CPU cores for maximum throughput.
-- **Curriculum Learning**: Progressively increases the difficulty (number of trains) dynamically via custom callbacks (`simulation/callbacks.py`).
-- **Safety Monitoring (`run_safely.sh`)**: Runs `monitor_safety.py` in the background to ensure memory usage and system resources don't overwhelm the machine during intensive multi-core training runs.
+Training is orchestrated by `train_advanced.py`, which uses `SubprocVecEnv` to parallelize across all available CPU cores with safety monitoring via `run_safely.sh` and `monitor_safety.py`.
+
+### Tier 2 — Regional Dispatcher (`simulation/dispatcher_env.py`)
+A higher-level Gym environment where the agent makes **Hold/Dispatch** decisions for trains within a geographic region. The Swiss network is split into 4 quadrants (Northeast, Northwest, Southeast, Southwest) by `scripts/split_regions.py`, and each region trains its own PPO agent in parallel via `train_dispatcher.py`.
+
+The full dispatcher pipeline is orchestrated by `run_dispatcher_safely.sh`:
+1. Loads route topology into **Redis** shared memory (`scripts/shared_memory_server.py`).
+2. Chunks the master dataset into 4 regions (`scripts/split_regions.py`).
+3. Launches 4 parallel regional trainers (7 envs each = 28 vCPUs).
+4. Displays a unified progress bar via `scripts/master_progress_bar.py`.
 
 > For a deep dive into the training performance and metrics, see the **[TensorBoard Guide](tensorboard_guide.md)**.
 
@@ -122,8 +136,9 @@ Evaluates the saved policy deterministically over a set of episodes and traces t
 
 The `dashboard/` directory contains a real-time web interface for visualizing the live simulation.
 
-- **Backend (`dashboard/backend/main.py`)**: A FastAPI application that loads the trained PPO model, steps the `ArtemisEnv`, and streams live train coordinates, speeds, and delays via WebSockets.
-- **Frontend (`dashboard/frontend/`)**: A modular React/Vite application that connects to the WebSocket. It utilizes React Router to provide distinct pages: Home, Interactive Map Visualization, Train Data Tables, and About.
+- **Backend (`dashboard/backend/main.py`)**: A FastAPI application that loads the trained PPO model, steps the `ArtemisAdvancedEnv`, and streams live train coordinates (in km/h), speeds, and delays via WebSockets.
+- **Frontend (`dashboard/frontend/`)**: A React/Vite application with client-side routing. Pages include Home, Interactive Map Visualization (Google Maps), and About.
+- **One-command launch**: `./start_dashboard.sh` starts both servers and cleans up old processes.
 
 ---
 
@@ -152,32 +167,36 @@ python data_preparation/01_download_infrastructure.py
 # ...
 ```
 
-### 2. AI Simulation
+### 2. AI Simulation — Low-Level Driver
 ```bash
-pip install stable-baselines3[extra] gym
+pip install stable-baselines3[extra] gymnasium
 # Preprocess data for fast simulation loading
 python scripts/preprocess_data.py
 
 # Run the advanced, multi-core training with safety monitoring
 ./run_safely.sh
 
-# Alternatively, evaluate the trained model
+# Evaluate the trained model
 python simulation/run_trained_model.py
 ```
 
-### 3. Web Dashboard
-**Backend:**
+### 3. AI Simulation — Regional Dispatcher
 ```bash
-cd dashboard/backend
-pip install fastapi uvicorn websockets
-uvicorn main:app --reload --port 8000
+# Requires Redis running locally (apt install redis-server && redis-server --daemonize yes)
+pip install redis
+
+# Run the full dispatcher pipeline (data preprocessing → region split → 4-region parallel training)
+./run_dispatcher_safely.sh
 ```
 
-**Frontend:**
+### 4. Web Dashboard
 ```bash
-cd dashboard/frontend
-npm install
-npm run dev
+# One-command launch (starts backend + frontend):
+./start_dashboard.sh
+
+# Or manually:
+cd dashboard/backend && pip install fastapi uvicorn websockets && uvicorn main:app --reload --port 8000
+cd dashboard/frontend && npm install && npm run dev
 ```
 
 ---
@@ -186,3 +205,4 @@ npm run dev
 - **Passenger trains only.** Freight trains are not included as their schedules are not public.
 - **Estimated rolling stock data.** Physical properties are mapped by category (e.g., IC, S-Bahn).
 - **Euclidean snapping.** Station-to-graph node mapping uses straight-line distance, which may occasionally snap to parallel lines.
+- **Linear GPS interpolation.** Train positions on the dashboard map are interpolated linearly between start/end coordinates rather than following exact track geometry.

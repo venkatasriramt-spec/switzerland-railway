@@ -51,7 +51,7 @@ const ArtemisMap = ({ trains, metadata }) => {
                       <div><strong>Train No:</strong></div>
                       <div>{hoveredTrain.id}</div>
                       <div><strong>Speed:</strong></div>
-                      <div>{hoveredTrain.speed.toFixed(1)} m/s</div>
+                      <div>{hoveredTrain.speed.toFixed(1)} km/h</div>
                       <div><strong>Delay:</strong></div>
                       <div>{hoveredTrain.delay.toFixed(1)} s</div>
                     </div>

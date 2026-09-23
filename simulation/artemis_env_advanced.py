@@ -41,6 +41,12 @@ class ArtemisAdvancedEnv(gym.Env):
             power = 1.0 if str(first_row.get('power_supply', 'electric')).lower() == 'electric' else 0.0
             gauge = float(first_row.get('gauge', 1435)) / 1435.0
             
+            # Extract Coordinates for Map Plotting
+            start_lat = float(trip_data.iloc[0]['stop_lat'])
+            start_lon = float(trip_data.iloc[0]['stop_lon'])
+            end_lat = float(trip_data.iloc[-1]['stop_lat'])
+            end_lon = float(trip_data.iloc[-1]['stop_lon'])
+            
             route_data = self.routes.get(trip_id, {})
             total_dist = route_data.get("total_distance_m", 100000.0)
             segments = route_data.get("segments", [])
@@ -53,7 +59,11 @@ class ArtemisAdvancedEnv(gym.Env):
                 'weight': weight,
                 'carriages': carriages,
                 'power': power,
-                'gauge': gauge
+                'gauge': gauge,
+                'start_lat': start_lat,
+                'start_lon': start_lon,
+                'end_lat': end_lat,
+                'end_lon': end_lon
             })
         
         self.action_space = spaces.MultiDiscrete([3] * self.num_trains)
@@ -190,7 +200,7 @@ class ArtemisAdvancedEnv(gym.Env):
             # B. Collision Detection (Scaled by Curriculum Weight)
             if dist_ahead <= 0.0 and obs[i][0] > 0:
                 rewards[i] -= (500.0 * self.collision_weight) # Collision!
-                speed = 0.0 
+                # speed = 0.0 # Disabled for Visualization so trains can leave the station
             elif dist_ahead <= 50.0 and speed > 0:
                 rewards[i] -= (50.0 * self.collision_weight) # Dangerously close!
                 
@@ -216,3 +226,30 @@ class ArtemisAdvancedEnv(gym.Env):
             
         total_reward = float(np.sum(rewards))
         return self._get_obs(), total_reward, terminated, truncated, {}
+
+    def get_train_coordinates(self):
+        """
+        Returns a list of dictionaries containing the interpolated GPS coordinates
+        and telemetry for every train to be used by the web dashboard.
+        """
+        trains_data = []
+        for i in range(self.num_trains):
+            pos, speed, delay = self.state[i]
+            meta = self.train_metadata[i]
+            
+            # Calculate completion percentage (0.0 to 1.0)
+            progress = min(1.0, pos / meta['total_dist']) if meta['total_dist'] > 0 else 1.0
+            
+            # Linear interpolation for latitude and longitude
+            current_lat = meta['start_lat'] + progress * (meta['end_lat'] - meta['start_lat'])
+            current_lon = meta['start_lon'] + progress * (meta['end_lon'] - meta['start_lon'])
+            
+            trains_data.append({
+                "id": int(i),
+                "trip_id": str(meta['trip_id']),
+                "lat": float(current_lat),
+                "lon": float(current_lon),
+                "speed": float(speed * 3.6), # Convert back to km/h for the UI
+                "delay": float(delay)
+            })
+        return trains_data

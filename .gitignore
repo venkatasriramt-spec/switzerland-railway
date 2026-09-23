@@ -23,6 +23,11 @@ data/*.png
 data/*.html
 data/*.js
 
+# Ignore massive generated JSON (but keep rolling_stock_profiles.json)
+data/compiled_routes.json
+data/mini_routes.json
+data/regions.json
+
 # Ignore trained models and checkpoints
 models/*.zip
 models/checkpoints/*.zip
@@ -30,13 +35,12 @@ models/checkpoints_advanced/*.zip
 models/tb_logs/
 tensorboard_logs/
 
-# Ignore simulation logs
+# Ignore simulation and training logs
 simulation/*.log
 logs/
 
-# Ignore massive generated JSON (but keep rolling_stock_profiles.json)
-data/compiled_routes.json
-data/mini_routes.json
+# Throwaway test/debug scripts
+test_*.py
 
 # Web Dashboard & Tool Artifacts
 dashboard/frontend/node_modules/

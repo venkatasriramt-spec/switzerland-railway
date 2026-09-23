@@ -7,7 +7,7 @@ import datetime
 # Configuration
 CPU_THRESHOLD = 98.0
 RAM_THRESHOLD = 95.0
-SUSTAINED_SECONDS = 10 # Must be above CPU threshold for this many seconds
+SUSTAINED_SECONDS = 60 # Must be above CPU threshold for this many seconds
 CHECK_INTERVAL = 1
 
 def log_message(msg):
@@ -26,7 +26,7 @@ def find_training_process():
     for p in psutil.process_iter(['pid', 'name', 'cmdline']):
         try:
             cmdline = p.info.get('cmdline')
-            if cmdline and 'train_advanced.py' in cmdline and 'python' in cmdline[0]:
+            if cmdline and ('train_advanced.py' in cmdline or 'train_dispatcher.py' in cmdline) and 'python' in cmdline[0]:
                 return p
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass

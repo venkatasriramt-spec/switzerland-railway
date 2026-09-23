@@ -25,7 +25,7 @@ const Visualization = ({ trains, metadata }) => {
               <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#f8fafc' }}>
                 {trains.length > 0 
                   ? (trains.reduce((acc, t) => acc + t.speed, 0) / trains.length).toFixed(1)
-                  : "0.0"} <span style={{ fontSize: '0.9rem', color: '#64748b' }}>m/s</span>
+                  : "0.0"} <span style={{ fontSize: '0.9rem', color: '#64748b' }}>km/h</span>
               </div>
             </div>
           </div>
